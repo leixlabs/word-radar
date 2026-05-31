@@ -1,0 +1,47 @@
+# --- OS ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# --- IDE / Editors ---
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+
+# --- Go (server) ---
+server/word-radar-server
+server/word-radar
+server/.gocache/
+server/.modcache/
+server/tmp/
+server/vendor/
+
+# --- Extension (packed artifacts) ---
+extension/*.zip
+extension/*.crx
+extension/*.pem
+
+# --- Data ---
+server/data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# --- Docker ---
+docker-data/
+
+# --- Trace / Log ---
+.traces/
+*.log
+
+# --- Config override (local) ---
+*.local.yaml
+*.local.yml
+.env
+.env.*

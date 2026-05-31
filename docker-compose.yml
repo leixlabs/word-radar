@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  word-radar:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: word-radar-server
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./data:/app/data
+      - /Users/lei/dev/ob:/obsidian
+      - ./confg.yaml:/app/confg.yaml  # 配置挂载
+    command: ["--config", "/app/confg.yaml"]
+    # 环境变量仍可覆盖 confg.yaml 中的值（优先级更高）
+    # environment:
+    #   - LLM_API_KEY=sk-xxx
+    restart: unless-stopped

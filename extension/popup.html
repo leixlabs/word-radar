@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Word Radar</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <div class="popup-container">
+    <div class="popup-header">
+      <span class="popup-icon">📡</span>
+      <span class="popup-title">Word Radar</span>
+    </div>
+
+    <div class="popup-section">
+      <label for="theme">主题</label>
+      <select id="theme">
+        <option value="system">跟随系统</option>
+        <option value="light">浅色</option>
+        <option value="dark">深色</option>
+      </select>
+    </div>
+
+    <div class="popup-section">
+      <label for="trigger">触发方式</label>
+      <select id="trigger">
+        <option value="click">单击单词</option>
+        <option value="dblclick">双击单词</option>
+      </select>
+    </div>
+
+    <div class="popup-section">
+      <label for="server">后端地址</label>
+      <input type="text" id="server" placeholder="http://localhost:8787" />
+    </div>
+
+    <div class="popup-section">
+      <label for="hideDelay">关闭延迟</label>
+      <select id="hideDelay">
+        <option value="300">快 (300ms)</option>
+        <option value="800">正常 (800ms)</option>
+        <option value="1500">慢 (1.5s)</option>
+        <option value="3000">很长 (3s)</option>
+      </select>
+    </div>
+
+    <div class="popup-section">
+      <label for="ttsLang">TTS 语音</label>
+      <select id="ttsLang">
+        <option value="en-US">美式英语</option>
+        <option value="en-GB">英式英语</option>
+      </select>
+    </div>
+
+    <div class="popup-section">
+      <label class="checkbox-label">
+        <input type="checkbox" id="studyMode" />
+        <span>启用插件</span>
+      </label>
+    </div>
+
+    <div class="popup-section">
+      <label class="checkbox-label">
+        <input type="checkbox" id="autoSave" />
+        <span>自动保存生词</span>
+      </label>
+    </div>
+
+    <div class="popup-actions">
+      <button id="saveBtn" class="btn btn-primary">保存设置</button>
+      <button id="syncBtn" class="btn btn-secondary">🔄 同步到 Obsidian</button>
+    </div>
+
+    <div class="popup-status" id="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,124 @@
+package config
+
+import (
+	"os"
+	"strconv"
+	"time"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Config 全局配置
+type Config struct {
+	Server   ServerConfig   `yaml:"server"`
+	Obsidian ObsidianConfig `yaml:"obsidian"`
+	Dict     DictConfig     `yaml:"dict"`
+	LLM      LLMConfig      `yaml:"llm"`
+	DataDir  string         `yaml:"dataDir"`
+}
+
+type ServerConfig struct {
+	Port string `yaml:"port"`
+}
+
+type ObsidianConfig struct {
+	VaultPath       string `yaml:"vaultPath"`
+	WordsDir        string `yaml:"wordsDir"`
+	DailyNoteFormat string `yaml:"dailyNoteFormat"`
+}
+
+type DictConfig struct {
+	CacheTTL time.Duration `yaml:"cacheTTL"`
+}
+
+type LLMConfig struct {
+	Enabled     bool    `yaml:"enabled"`
+	Provider    string  `yaml:"provider"`
+	APIURL      string  `yaml:"apiUrl"`
+	APIKey      string  `yaml:"apiKey"`
+	Model       string  `yaml:"model"`
+	Temperature float64 `yaml:"temperature"`
+}
+
+// Load 加载配置：先读配置文件（如果存在），再用环境变量覆盖
+func Load(configPath string) *Config {
+	cfg := defaultConfig()
+
+	// 尝试读取配置文件
+	path := configPath
+	if path == "" {
+		path = "config.yaml"
+	}
+	if data, err := os.ReadFile(path); err == nil {
+		_ = yaml.Unmarshal(data, cfg)
+	}
+
+	// 环境变量覆盖
+	if v := os.Getenv("SERVER_PORT"); v != "" {
+		cfg.Server.Port = v
+	}
+	if v := os.Getenv("OBSIDIAN_VAULT_PATH"); v != "" {
+		cfg.Obsidian.VaultPath = v
+	}
+	if v := os.Getenv("OBSIDIAN_WORDS_DIR"); v != "" {
+		cfg.Obsidian.WordsDir = v
+	}
+	if v := os.Getenv("OBSIDIAN_DAILY_FORMAT"); v != "" {
+		cfg.Obsidian.DailyNoteFormat = v
+	}
+	if v := os.Getenv("DATA_DIR"); v != "" {
+		cfg.DataDir = v
+	}
+	if v := os.Getenv("DICT_CACHE_TTL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			cfg.Dict.CacheTTL = d
+		}
+	}
+	if v := os.Getenv("LLM_ENABLED"); v != "" {
+		cfg.LLM.Enabled, _ = strconv.ParseBool(v)
+	}
+	if v := os.Getenv("LLM_PROVIDER"); v != "" {
+		cfg.LLM.Provider = v
+	}
+	if v := os.Getenv("LLM_API_URL"); v != "" {
+		cfg.LLM.APIURL = v
+	}
+	if v := os.Getenv("LLM_API_KEY"); v != "" {
+		cfg.LLM.APIKey = v
+	}
+	if v := os.Getenv("LLM_MODEL"); v != "" {
+		cfg.LLM.Model = v
+	}
+	if v := os.Getenv("LLM_TEMPERATURE"); v != "" {
+		if t, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.LLM.Temperature = t
+		}
+	}
+
+	return cfg
+}
+
+func defaultConfig() *Config {
+	return &Config{
+		Server: ServerConfig{
+			Port: "8787",
+		},
+		Obsidian: ObsidianConfig{
+			VaultPath:       "/Users/lei/dev/ob",
+			WordsDir:        "英语学习/words",
+			DailyNoteFormat: "Word Radar - {date}.md",
+		},
+		Dict: DictConfig{
+			CacheTTL: 168 * time.Hour,
+		},
+		LLM: LLMConfig{
+			Enabled:     false,
+			Provider:    "openai",
+			APIURL:      "http://localhost:4000",
+			APIKey:      "",
+			Model:       "gpt-4o-mini",
+			Temperature: 1.0,
+		},
+		DataDir: "./data",
+	}
+}
