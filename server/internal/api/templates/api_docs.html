@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Radar API</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0f172a; color: #e2e8f0; line-height: 1.6; padding: 2rem 1rem;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+  h2 {
+    font-size: 1.25rem; font-weight: 600; margin: 2rem 0 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid #1e293b;
+  }
+  .endpoint {
+    background: #1e293b; border-radius: 8px; padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem; border: 1px solid #334155;
+  }
+  .endpoint-header {
+    display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;
+  }
+  .method {
+    display: inline-block; font-size: 0.75rem; font-weight: 700;
+    padding: 0.2rem 0.5rem; border-radius: 4px; letter-spacing: 0.05em;
+    min-width: 3.5rem; text-align: center;
+  }
+  .method-get { background: #065f46; color: #6ee7b7; }
+  .method-post { background: #1e3a5f; color: #93c5fd; }
+  .path { font-family: "SF Mono", "Fira Code", monospace; font-size: 0.95rem; color: #f1f5f9; }
+  .desc { color: #94a3b8; font-size: 0.9rem; }
+  .params { margin-top: 0.5rem; }
+  .param {
+    display: inline-block; font-size: 0.8rem; font-family: "SF Mono", monospace;
+    background: #0f172a; padding: 0.15rem 0.4rem; border-radius: 3px;
+    color: #facc15; margin-right: 0.25rem;
+  }
+  .param-opt { color: #94a3b8; }
+  code {
+    font-family: "SF Mono", "Fira Code", monospace; font-size: 0.85rem;
+    background: #0f172a; padding: 0.1rem 0.35rem; border-radius: 3px;
+    color: #a5b4fc;
+  }
+  pre {
+    background: #0f172a; border-radius: 6px; padding: 0.75rem 1rem;
+    overflow-x: auto; font-size: 0.85rem; margin-top: 0.5rem;
+    border: 1px solid #1e293b;
+  }
+  .footer { margin-top: 3rem; color: #475569; font-size: 0.85rem; text-align: center; }
+  .badge {
+    display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 500; margin-bottom: 1.5rem;
+  }
+  .badge-online { background: #065f46; color: #6ee7b7; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Word Radar</h1>
+  <p class="subtitle">Click-to-lookup Chrome Extension &mdash; API Server</p>
+
+  <span class="badge badge-online">● Server Online</span>
+
+  <h2>Endpoints</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="path">/health</span>
+    </div>
+    <div class="desc">Health check. Returns <code>{"status":"ok"}</code> when the server is running.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="path">/api/lookup?q={word}&amp;context={context}</span>
+    </div>
+    <div class="desc">
+      Look up a word. Returns phonetic, definitions, examples, and audio URL.
+      If <code>context</code> is provided, the word is automatically saved to the word list and synced to Obsidian.
+    </div>
+    <div class="params">
+      <span class="param">q (required)</span> — the word to look up<br>
+      <span class="param param-opt">context (optional)</span> — sentence context for the word
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="path">/api/wordcard?q={word}</span>
+    </div>
+    <div class="desc">
+      Generate a rich word card with LLM-enhanced etymology, mnemonics, and cognates.
+      Falls back to dict-only data when LLM is not configured.
+    </div>
+    <div class="params">
+      <span class="param">q (required)</span> — the word to generate a card for
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="path">/api/words?limit={{.Limit}}&amp;offset={{.Offset}}</span>
+    </div>
+    <div class="desc">List saved word records with pagination.</div>
+    <div class="params">
+      <span class="param param-opt">limit</span> — max records (default 20, max 100)<br>
+      <span class="param param-opt">offset</span> — pagination offset (default 0)
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="path">/api/words/sync</span>
+    </div>
+    <div class="desc">Manually trigger sync of unsaved words to Obsidian. Returns the generated file path.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="path">/api/words/lookups?start={start}&amp;end={end}&amp;word={word}</span>
+    </div>
+    <div class="desc">
+      Query word lookup frequency within a time range. Queries the <code>word_lookups</code> table.
+      Returns per-word: range count, total count, first and last lookup time, sorted by range count descending.
+    </div>
+    <div class="params">
+      <span class="param">start (required)</span> — range start, RFC3339 format (<code>2026-01-01T00:00:00Z</code>)<br>
+      <span class="param">end (required)</span> — range end, RFC3339 format (<code>2026-06-01T23:59:59Z</code>)<br>
+      <span class="param param-opt">word (optional)</span> — filter to a specific word; omit for all words
+    </div>
+  </div>
+
+  <h2>Examples</h2>
+
+<pre>$ curl http://localhost:{{.Port}}/api/lookup?q=serendipity
+{
+  "word": "serendipity",
+  "phonetic": "/ˌsɛrənˈdɪpɪti/",
+  "meanings": [...],
+  "examples": [...]
+}</pre>
+
+<pre>$ curl "http://localhost:{{.Port}}/api/words/lookups?start=2026-01-01T00:00:00Z&amp;end=2026-06-01T23:59:59Z"
+[
+  {
+    "word": "mandarin",
+    "range_count": 4,
+    "total_count": 10,
+    "first_lookup_at": "2026-05-30T10:15:00Z",
+    "last_lookup_at": "2026-05-31T07:59:29Z"
+  }
+]</pre>
+
+<pre>$ curl -X POST http://localhost:{{.Port}}/api/words/sync
+{
+  "path": ".../Word Radar - 2026-06-01.md",
+  "message": "synced to obsidian"
+}</pre>
+
+  <div class="footer">
+    Word Radar &mdash; <a style="color:#6366f1;" href="/health">/health</a>
+  </div>
+</div>
+</body>
+</html>

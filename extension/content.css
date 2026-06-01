@@ -185,10 +185,11 @@
 
 .word-radar-ety-label {
   flex-shrink: 0;
-  width: 56px;
+  width: 80px;
   font-weight: 600;
   color: #0f172a;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .word-radar-ety-value {

@@ -49,6 +49,15 @@ type LookupHistory struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// WordLookupStats 单词在时间范围内的查询统计（word_lookups 单表聚合）
+type WordLookupStats struct {
+	Word          string    `json:"word"`
+	RangeCount    int       `json:"range_count"`
+	TotalCount    int       `json:"total_count"`
+	FirstLookupAt time.Time `json:"first_lookup_at"`
+	LastLookupAt  time.Time `json:"last_lookup_at"`
+}
+
 // LLMAnalysis LLM 单词拆解
 type LLMAnalysis struct {
 	ID            int64      `json:"id"`

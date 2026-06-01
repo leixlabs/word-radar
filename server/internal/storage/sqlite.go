@@ -164,6 +164,57 @@ func (db *DB) MarkSynced(words []string) error {
 	return nil
 }
 
+// wordLookupTimeLayout matches SQLite datetime format from modernc.org/sqlite
+const wordLookupTimeLayout = "2006-01-02 15:04:05.999999 -0700 MST"
+
+// ListWordLookupStats 按时间范围统计单词查询次数（word_lookups 单表聚合）
+// word 为空时返回所有单词的统计，否则只返回指定单词
+// 单 SQL 查询，使用条件聚合获取：时间范围内次数、总次数、最早和最晚查询时间
+func (db *DB) ListWordLookupStats(start, end time.Time, word string) ([]model.WordLookupStats, error) {
+	var (
+		rows *sql.Rows
+		err  error
+	)
+
+	sqlQuery := `
+		SELECT
+			l.word,
+			SUM(CASE WHEN l.created_at >= ? AND l.created_at <= ? THEN 1 ELSE 0 END),
+			COUNT(*),
+			MIN(l.created_at),
+			MAX(CASE WHEN l.created_at >= ? AND l.created_at <= ? THEN l.created_at ELSE NULL END)
+		FROM word_lookups l
+		WHERE l.word IN (SELECT DISTINCT word FROM word_lookups WHERE created_at >= ? AND created_at <= ?)`
+
+	if word != "" {
+		sqlQuery += ` AND l.word = ?`
+	}
+	sqlQuery += ` GROUP BY l.word ORDER BY 2 DESC`
+
+	if word != "" {
+		rows, err = db.conn.Query(sqlQuery, start, end, start, end, start, end, word)
+	} else {
+		rows, err = db.conn.Query(sqlQuery, start, end, start, end, start, end)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query word lookup stats: %w", err)
+	}
+	defer rows.Close()
+
+	var stats []model.WordLookupStats
+	for rows.Next() {
+		var s model.WordLookupStats
+		var firstLookupStr, lastLookupStr string
+		if err := rows.Scan(&s.Word, &s.RangeCount, &s.TotalCount, &firstLookupStr, &lastLookupStr); err != nil {
+			return nil, fmt.Errorf("scan word lookup stats: %w", err)
+		}
+		s.FirstLookupAt, _ = time.Parse(wordLookupTimeLayout, firstLookupStr)
+		s.LastLookupAt, _ = time.Parse(wordLookupTimeLayout, lastLookupStr)
+		stats = append(stats, s)
+	}
+	return stats, rows.Err()
+}
+
 // GetCache 获取查词缓存
 func (db *DB) GetCache(word, source, modelName string) (string, bool, error) {
 	var result string

@@ -445,62 +445,40 @@
   }
 
   // 渲染单词卡（LLM 记忆增强数据）到指定容器
+  // 通用渲染：后端通过 aspects 数组定义有哪些属性及其图标/标签/排序
+  // 后端新增 aspect 时，前端无需修改
   function renderWordCard(container, card) {
     container.innerHTML = '<div class="word-radar-section-title">🧠 记忆增强</div>';
-    if (card.scene) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">🎨 场景</span><span class="word-radar-ety-value">${card.scene}</span>`;
-      container.appendChild(div);
-    }
-    if (card.etymology) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">🧩 词根</span><span class="word-radar-ety-value">${card.etymology}</span>`;
-      container.appendChild(div);
-    }
-    if (card.cn_core) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">💡 核心</span><span class="word-radar-ety-value">${card.cn_core}</span>`;
-      container.appendChild(div);
-    }
-    if (card.example) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">📖 例句</span><span class="word-radar-ety-value">${card.example}</span>`;
-      container.appendChild(div);
-    }
-    if (card.contrast) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">⚡ 对比</span><span class="word-radar-ety-value">${card.contrast}</span>`;
-      container.appendChild(div);
-    }
-    if (card.word_family && card.word_family.length > 0) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">👨‍👩‍👧‍👦 同根</span><span class="word-radar-ety-value">${card.word_family.join(', ')}</span>`;
-      container.appendChild(div);
-    }
-    if (card.pronunciation_trap) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">🎯 发音</span><span class="word-radar-ety-value">${card.pronunciation_trap}</span>`;
-      container.appendChild(div);
-    }
-    if (card.memory_hook) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">🔗 记忆</span><span class="word-radar-ety-value">${card.memory_hook}</span>`;
-      container.appendChild(div);
-    }
-    if (card.register) {
-      const div = document.createElement('div');
-      div.className = 'word-radar-ety-item';
-      div.innerHTML = `<span class="word-radar-ety-label">🏷️ 语域</span><span class="word-radar-ety-value">${card.register}</span>`;
-      container.appendChild(div);
-    }
+    const aspects = card.aspects;
+    if (!aspects || aspects.length === 0) return;
+
+    // 按 layer 分组显示
+    const layers = ['core', 'enhancement', 'polish'];
+    layers.forEach((layer) => {
+      const layerAspects = aspects.filter((a) => a.layer === layer);
+      if (layerAspects.length === 0) return;
+
+      // layer 分隔标题（可选）
+      if (layer !== 'core' && layerAspects.length > 0) {
+        const sep = document.createElement('div');
+        sep.className = 'word-radar-section-title';
+        sep.style.fontSize = '10px';
+        sep.style.opacity = '0.5';
+        sep.style.marginTop = '4px';
+        sep.textContent = layer === 'enhancement' ? '区分' : '加深';
+        container.appendChild(sep);
+      }
+
+      layerAspects.forEach((a) => {
+        const div = document.createElement('div');
+        div.className = 'word-radar-ety-item';
+        const value = a.values && a.values.length > 0
+          ? a.values.join(', ')
+          : a.value || '';
+        div.innerHTML = `<span class="word-radar-ety-label">${a.icon} ${a.label}</span><span class="word-radar-ety-value">${value}</span>`;
+        container.appendChild(div);
+      });
+    });
   }
 
   // ====== 底部进度条（单词卡 LLM 加载状态） ======

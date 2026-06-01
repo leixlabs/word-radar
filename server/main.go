@@ -48,7 +48,7 @@ func main() {
 	aggregator := dict.NewAggregator(db, cfg.Dict.CacheTTL)
 	obsGen := obsidian.NewGenerator(&cfg.Obsidian)
 	wordcardSvc := wordcard.NewService(db, aggregator, cfg.LLM)
-	handler := api.NewHandler(db, aggregator, obsGen, wordcardSvc)
+	handler := api.NewHandler(cfg, db, aggregator, obsGen, wordcardSvc)
 	router := api.NewRouter(handler)
 	log.Info("modules initialized",
 		slog.Bool("wordcardAvailable", wordcardSvc.IsAvailable()),

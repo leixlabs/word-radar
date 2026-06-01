@@ -1,13 +1,16 @@
 package api
 
 import (
+	"embed"
 	"encoding/json"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
+	"word-radar/server/internal/config"
 	"word-radar/server/internal/dict"
 	"word-radar/server/internal/logger"
 	"word-radar/server/internal/model"
@@ -16,8 +19,14 @@ import (
 	"word-radar/server/internal/wordcard"
 )
 
+//go:embed templates/*
+var templateFS embed.FS
+
+var apiDocsTmpl = template.Must(template.ParseFS(templateFS, "templates/api_docs.html"))
+
 // Handler API 处理器
 type Handler struct {
+	cfg        *config.Config
 	db         *storage.DB
 	aggregator *dict.Aggregator
 	obsidian   *obsidian.Generator
@@ -27,13 +36,34 @@ type Handler struct {
 }
 
 // NewHandler 创建处理器
-func NewHandler(db *storage.DB, aggregator *dict.Aggregator, obsGen *obsidian.Generator, wc *wordcard.Service) *Handler {
+func NewHandler(cfg *config.Config, db *storage.DB, aggregator *dict.Aggregator, obsGen *obsidian.Generator, wc *wordcard.Service) *Handler {
 	return &Handler{
+		cfg:        cfg,
 		db:         db,
 		aggregator: aggregator,
 		obsidian:   obsGen,
 		wordcard:   wc,
 		log:        logger.L(),
+	}
+}
+
+// APIDocs returns an HTML API documentation page at the root path.
+func (h *Handler) APIDocs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	data := struct {
+		Port   string
+		Limit  string
+		Offset string
+	}{
+		Port:   h.cfg.Server.Port,
+		Limit:  "20",
+		Offset: "0",
+	}
+
+	if err := apiDocsTmpl.Execute(w, data); err != nil {
+		h.log.Error("failed to render api docs template", slog.String("error", err.Error()))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
 
@@ -116,15 +146,7 @@ func (h *Handler) WordCard(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusNotFound, err.Error())
 			return
 		}
-		// 构建降级卡片
-		card := &wordcard.WordCard{
-			Word:    dictResult.Word,
-			IPA:     dictResult.Phonetic,
-			Sources: dictResult.Sources,
-		}
-		if len(dictResult.Examples) > 0 {
-			card.Example = dictResult.Examples[0]
-		}
+		card := wordcard.BuildFallbackCard(dictResult)
 		respondJSON(w, http.StatusOK, card)
 		return
 	}
@@ -208,20 +230,37 @@ func (h *Handler) syncToObsidian() (string, error) {
 	return path, nil
 }
 
-// StatsResponse 统计响应
-type StatsResponse struct {
-	TotalWords    int64 `json:"total_words"`
-	TodayWords    int64 `json:"today_words"`
-	UnsyncedWords int64 `json:"unsynced_words"`
-}
+// WordLookupStats 按时间范围统计单词查询次数
+// GET /api/words/lookups?start=2026-01-01T00:00:00Z&end=2026-06-01T23:59:59Z&word=example
+// word 参数可选，不传则返回时间范围内所有单词的查询统计
+func (h *Handler) WordLookupStats(w http.ResponseWriter, r *http.Request) {
+	startStr := r.URL.Query().Get("start")
+	endStr := r.URL.Query().Get("end")
+	if startStr == "" || endStr == "" {
+		respondError(w, http.StatusBadRequest, "missing start or end parameter")
+		return
+	}
 
-// Stats 统计信息
-func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
-	respondJSON(w, http.StatusOK, StatsResponse{
-		TotalWords:    0,
-		TodayWords:    0,
-		UnsyncedWords: 0,
-	})
+	start, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid start format, use RFC3339 (e.g. 2026-01-01T00:00:00Z)")
+		return
+	}
+	end, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid end format, use RFC3339 (e.g. 2026-06-01T23:59:59Z)")
+		return
+	}
+
+	word := r.URL.Query().Get("word")
+
+	stats, err := h.db.ListWordLookupStats(start, end, word)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, stats)
 }
 
 // ====== 辅助方法 ======

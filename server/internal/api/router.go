@@ -29,6 +29,9 @@ func NewRouter(handler *Handler) *chi.Mux {
 		MaxAge:           300,
 	}))
 
+	// 根路径 — API 文档
+	r.Get("/", handler.APIDocs)
+
 	// 健康检查
 	r.Get("/health", handler.HealthCheck)
 
@@ -39,7 +42,7 @@ func NewRouter(handler *Handler) *chi.Mux {
 
 		r.Get("/words", handler.ListWordRecords)
 		r.Post("/words/sync", handler.SyncToObsidian)
-		r.Get("/words/stats", handler.Stats)
+		r.Get("/words/lookups", handler.WordLookupStats)
 	})
 
 	return r
