@@ -7,23 +7,10 @@ import (
 	"word-radar/server/internal/model"
 )
 
-const systemPrompt = `You are an expert English vocabulary teacher who helps Chinese learners build deep, unforgettable mental connections to English words.
-
-Your goal is NOT to provide dictionary definitions. Dictionary meanings are already given. Your job is to create VIVID, CONCRETE mental anchors via the JSON structure defined by the required schema.
-
-=== RULES ===
-1. Output MUST be valid JSON matching the schema exactly.
-2. Do NOT wrap output in markdown code blocks.
-3. Do NOT include the word itself or IPA in the output — those are provided separately.
-4. Core fields (imagery, breakdown, etymology, cn_core, example, simple_english) MUST be filled — no empty strings.
-5. Enhancement fields (contrast, word_family): fill if applicable, otherwise "" or [].
-6. Polish fields (pronunciation_trap, memory_hook, register): fill if applicable, otherwise "".
-7. imagery and cn_core are the MOST important — make them vivid and unforgettable.
-8. breakdown focuses on word structure (prefix + root + suffix).
-9. etymology focuses on word origin/story (historical evolution).
-10. simple_english uses basic vocabulary a learner would understand.`
-
-func buildUserPrompt(word string, dictResult *model.WordResult) string {
+// buildUserPrompt 构建用户提示词。
+// 词典数据（IPA, meanings, examples）注入作为上下文。
+// 末尾层级提示由配置中的 fields layer 分组动态生成。
+func (s *Service) buildUserPrompt(word string, dictResult *model.WordResult) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Analyze: \"%s\"\n\n", word)
 
@@ -55,6 +42,48 @@ func buildUserPrompt(word string, dictResult *model.WordResult) string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("Generate the word card JSON. Layer approach: Core (imagery, breakdown, etymology, cn_core, example, simple_english) -> Enhancement (contrast, word_family) -> Polish (pronunciation_trap, memory_hook, register).")
+	// 动态生成层级提示
+	b.WriteString("Generate the word card JSON. Layer approach: ")
+	b.WriteString(s.buildLayerHint())
 	return b.String()
+}
+
+// buildLayerHint 根据配置中的 fields layer 分组生成层级提示字符串。
+// 如: "Core (imagery, breakdown, etymology, cn_core, example, simple_english) -> Enhancement (contrast, word_family) -> Polish (pronunciation_trap, memory_hook, register)"
+func (s *Service) buildLayerHint() string {
+	// 收集每个 layer 的字段 key
+	layers := make(map[string][]string)
+	layerOrder := []string{"core", "enhancement", "polish"}
+
+	for _, f := range s.wcCfg.Fields {
+		layers[f.Layer] = append(layers[f.Layer], f.Key)
+	}
+
+	var parts []string
+	for _, layerName := range layerOrder {
+		keys, ok := layers[layerName]
+		if !ok || len(keys) == 0 {
+			continue
+		}
+		capitalized := strings.ToUpper(layerName[:1]) + layerName[1:]
+		parts = append(parts, fmt.Sprintf("%s (%s)", capitalized, strings.Join(keys, ", ")))
+	}
+
+	// 兜底：layerOrder 中未列出的 layer
+	for layerName, keys := range layers {
+		found := false
+		for _, lo := range layerOrder {
+			if lo == layerName {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+		capitalized := strings.ToUpper(layerName[:1]) + layerName[1:]
+		parts = append(parts, fmt.Sprintf("%s (%s)", capitalized, strings.Join(keys, ", ")))
+	}
+
+	return strings.Join(parts, " -> ")
 }

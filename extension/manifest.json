@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Word Radar",
   "version": "1.0.0",
-  "description": "点击单词查词、发音，收集生词同步到 Obsidian",
+  "description": "点击单词查词、发音，收集生词到单词本",
   "permissions": [
     "activeTab",
     "storage",

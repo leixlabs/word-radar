@@ -146,7 +146,7 @@ func (h *Handler) WordCard(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusNotFound, err.Error())
 			return
 		}
-		card := wordcard.BuildFallbackCard(dictResult)
+		card := h.wordcard.BuildFallbackCard(dictResult)
 		respondJSON(w, http.StatusOK, card)
 		return
 	}

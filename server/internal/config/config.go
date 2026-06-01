@@ -14,6 +14,7 @@ type Config struct {
 	Obsidian ObsidianConfig `yaml:"obsidian"`
 	Dict     DictConfig     `yaml:"dict"`
 	LLM      LLMConfig      `yaml:"llm"`
+	WordCard WordCardConfig `yaml:"wordcard"`
 	DataDir  string         `yaml:"dataDir"`
 }
 
@@ -38,6 +39,27 @@ type LLMConfig struct {
 	APIKey      string  `yaml:"apiKey"`
 	Model       string  `yaml:"model"`
 	Temperature float64 `yaml:"temperature"`
+}
+
+// WordCardConfig 单词卡生成配置。
+// 修改 fields 即可增减/调整单词卡字段，无需改代码。
+// fields 数组的顺序决定前端 Aspect 输出顺序。
+type WordCardConfig struct {
+	PromptVersion string          `yaml:"promptVersion"` // LLM 缓存版本 key
+	SchemaVersion string          `yaml:"schemaVersion"` // Schema 版本，变更时旧缓存失效
+	SystemPrompt  string          `yaml:"systemPrompt"`  // LLM system prompt
+	Fields        []WordCardField `yaml:"fields"`        // 字段定义（顺序 = 输出顺序）
+}
+
+// WordCardField 单个单词卡字段定义
+type WordCardField struct {
+	Key         string `yaml:"key"`         // 稳定标识符，如 "imagery", "breakdown"
+	Label       string `yaml:"label"`       // 中文展示标签
+	Icon        string `yaml:"icon"`        // emoji 图标
+	Layer       string `yaml:"layer"`       // "core" | "enhancement" | "polish"
+	Type        string `yaml:"type"`        // "string" | "array"
+	Required    bool   `yaml:"required"`    // JSON Schema required
+	Description string `yaml:"description"` // 字段描述（送入 LLM JSON Schema）
 }
 
 // Load 加载配置：先读配置文件（如果存在），再用环境变量覆盖

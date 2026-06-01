@@ -1,19 +1,15 @@
 package wordcard
 
 import (
+	"word-radar/server/internal/config"
 	"word-radar/server/internal/llm"
 	"word-radar/server/internal/model"
 )
 
-// schemaVersion 当前 LLMResult 的 schema 版本。
-// 修改 LLMResult 结构体或 BuildJSONSchema 时递增此值，
-// 以使旧缓存失效（避免 schema 不匹配）。
-const schemaVersion = "v2"
-
 // ==== Generic Aspects Model ====
 //
 // 前端不需要知道有哪些 aspect。后端定义 key/label/icon/layer，
-// 前端只负责迭代 aspects 并渲染。新增 aspect 只需改后端。
+// 前端只负责迭代 aspects 并渲染。新增 aspect 只需改配置。
 //
 // Layer 分组语义:
 //   core        — 必填，决定"能否记住"
@@ -39,98 +35,91 @@ type WordCard struct {
 	Sources []model.Source `json:"sources"`
 }
 
-// LLMResult LLM 生成的单词卡片段（与词典数据解耦）
-//
-// imagery       — 场景/形象联想（取代旧 scene）
-// breakdown     — 词根词缀拆解骨架
-// etymology     — 词源故事（单词的起源/演变）
-// cn_core       — 灵魂翻译
-// example       — 上下文例句
-// simple_english — 简单英语解释
-// contrast      — 易混淆词对比
-// word_family   — 同根词
-// pronunciation_trap — 发音陷阱
-// memory_hook   — 记忆钩子
-// register      — 语域
-type LLMResult struct {
-	Imagery       string   `json:"imagery"`
-	Breakdown     string   `json:"breakdown"`
-	Etymology     string   `json:"etymology"`
-	CNCore        string   `json:"cn_core"`
-	Example       string   `json:"example"`
-	SimpleEnglish string   `json:"simple_english"`
-	Contrast      string   `json:"contrast"`
-	WordFamily    []string `json:"word_family"`
+// LLMResult LLM 返回的单词卡数据。
+// 使用 map 而非固定 struct，字段完全由配置驱动。
+// 新增/删除/修改字段只需改 config.yaml，无需改代码。
+type LLMResult map[string]interface{}
 
-	PronunciationTrap string `json:"pronunciation_trap"`
-	MemoryHook        string `json:"memory_hook"`
-	Register          string `json:"register"`
-}
+// BuildJSONSchema 根据 WordCardConfig 构建 OpenAI JSON Schema。
+// 字段定义（type, description, required）完全由配置驱动。
+func BuildJSONSchema(cfg config.WordCardConfig) llm.JSONSchema {
+	properties := make(map[string]interface{})
+	required := make([]string, 0)
 
-// BuildJSONSchema 构建 OpenAI JSON Schema 定义
-func BuildJSONSchema() llm.JSONSchema {
+	for _, f := range cfg.Fields {
+		prop := map[string]interface{}{
+			"type":        f.Type,
+			"description": f.Description,
+		}
+		if f.Type == "array" {
+			prop["items"] = map[string]interface{}{"type": "string"}
+		}
+		properties[f.Key] = prop
+		if f.Required {
+			required = append(required, f.Key)
+		}
+	}
+
 	return llm.JSONSchema{
 		Name:   "word_card",
 		Strict: true,
 		Schema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				// === Core ===
-				"imagery": map[string]interface{}{
-					"type":        "string",
-					"description": "核心形象联想。用中文描述这个单词唤起的动态画面/场景，必须有画面感。如 '双手合握抓住全部碎片'",
-				},
-				"breakdown": map[string]interface{}{
-					"type":        "string",
-					"description": "词根词缀拆解骨架。格式: '前缀 (意思) + 词根 (意思) [+ 后缀 (意思)]'。如 'com- (一起) + prehendere (抓住)'",
-				},
-				"etymology": map[string]interface{}{
-					"type":        "string",
-					"description": "词源故事。一句话说明这个单词的历史来源/演变过程。如 '来自拉丁语 comprehendere, 意为抓住、包含, 后演变为理解'",
-				},
-				"cn_core": map[string]interface{}{
-					"type":        "string",
-					"description": "灵魂翻译。不是词典释义，是基于 imagery 的场景翻译。4-6字，简洁有力。如 '合掌抓住全部'",
-				},
-				"example": map[string]interface{}{
-					"type":        "string",
-					"description": "一句自然的上下文例句，带英文引号。如 '\"I finally comprehend the structure.\"'",
-				},
-				"simple_english": map[string]interface{}{
-					"type":        "string",
-					"description": "用简单英语解释这个词（英语学习者友好，用基础词汇）。如 'to understand something completely, to grasp the meaning'",
-				},
-				// === Enhancement ===
-				"contrast": map[string]interface{}{
-					"type":        "string",
-					"description": "与易混淆词对比，磨锐含义边界。格式: 'X (特征A) ≠ Y (特征B)'。如 'comprehend (主动抓) ≠ understand (被动覆盖)'。没有则空字符串",
-				},
-				"word_family": map[string]interface{}{
-					"type":        "array",
-					"description": "同根词列表，帮助扩展词汇。如 ['apprehend', 'comprehensive', 'prehensile']。没有则空数组",
-					"items": map[string]interface{}{
-						"type": "string",
-					},
-				},
-				// === Polish ===
-				"pronunciation_trap": map[string]interface{}{
-					"type":        "string",
-					"description": "中文使用者常见发音错误。如 '重音在 -HEND, 不是 com-'。没有则空字符串",
-				},
-				"memory_hook": map[string]interface{}{
-					"type":        "string",
-					"description": "记忆钩子，绑定已有知识（影视、编程、游戏、小说等）。如 '韩立合掌抓丹方精髓'。没有好联想则空字符串",
-				},
-				"register": map[string]interface{}{
-					"type":        "string",
-					"description": "使用场合（正式/口语/书面/文学/俚语/古语）。如 '偏书面/正式'。普通词空字符串",
-				},
-			},
-			"required": []string{
-				"imagery", "breakdown", "etymology", "cn_core", "example", "simple_english",
-				"contrast", "word_family", "pronunciation_trap", "memory_hook", "register",
-			},
+			"type":                 "object",
+			"properties":           properties,
+			"required":             required,
 			"additionalProperties": false,
 		},
 	}
+}
+
+// extractAspectValue 从 LLMResult map 中提取指定 key 的值。
+// 支持 string 类型和 []interface{} (array) 类型。
+func extractAspectValue(llmPart LLMResult, key string, fieldType string) (val string, vals []string, hasVal bool) {
+	raw, ok := llmPart[key]
+	if !ok {
+		return "", nil, false
+	}
+
+	switch fieldType {
+	case "string":
+		if s, ok := raw.(string); ok && s != "" {
+			return s, nil, true
+		}
+	case "array":
+		arr, ok := raw.([]interface{})
+		if !ok || len(arr) == 0 {
+			return "", nil, false
+		}
+		strs := make([]string, 0, len(arr))
+		for _, item := range arr {
+			if s, ok := item.(string); ok {
+				strs = append(strs, s)
+			}
+		}
+		if len(strs) > 0 {
+			return "", strs, true
+		}
+	}
+	return "", nil, false
+}
+
+// findField 在字段列表中查找指定 key 的字段定义。
+// 返回 nil 表示未找到。
+func findField(fields []config.WordCardField, key string) *config.WordCardField {
+	for i := range fields {
+		if fields[i].Key == key {
+			return &fields[i]
+		}
+	}
+	return nil
+}
+
+// hasAspectKey 检查 aspects 数组中是否已存在指定 key
+func hasAspectKey(aspects []Aspect, key string) bool {
+	for _, a := range aspects {
+		if a.Key == key {
+			return true
+		}
+	}
+	return false
 }

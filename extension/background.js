@@ -22,18 +22,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true; // async
   }
-
-  if (request.type === 'SYNC_OBSIDIAN') {
-    chrome.storage.sync.get(['server'], async (items) => {
-      const server = items.server || 'http://localhost:8787';
-      try {
-        const resp = await fetch(`${server}/api/words/sync`, { method: 'POST' });
-        const data = await resp.json();
-        sendResponse({ success: resp.ok, data });
-      } catch (e) {
-        sendResponse({ success: false, error: e.message });
-      }
-    });
-    return true;
-  }
 });

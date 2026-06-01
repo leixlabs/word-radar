@@ -5,9 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const hideDelayEl = document.getElementById('hideDelay');
   const ttsLangEl = document.getElementById('ttsLang');
   const studyModeEl = document.getElementById('studyMode');
-  const autoSaveEl = document.getElementById('autoSave');
+  const autoCopyEl = document.getElementById('autoCopy');
   const saveBtn = document.getElementById('saveBtn');
-  const syncBtn = document.getElementById('syncBtn');
   const statusEl = document.getElementById('status');
 
   function applyPopupTheme(theme) {
@@ -24,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function loadSettings() {
     chrome.storage.sync.get(
-      ['theme', 'trigger', 'server', 'hideDelay', 'ttsLang', 'ttsRate', 'studyMode', 'autoSave'],
+      ['theme', 'trigger', 'server', 'hideDelay', 'ttsLang', 'ttsRate', 'studyMode', 'autoCopy'],
       (items) => {
         themeEl.value = items.theme || 'system';
         triggerEl.value = items.trigger || 'click';
@@ -32,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideDelayEl.value = String(items.hideDelay || 800);
         ttsLangEl.value = items.ttsLang || 'en-US';
         studyModeEl.checked = items.studyMode !== false;
-        autoSaveEl.checked = items.autoSave !== false;
+        autoCopyEl.checked = items.autoCopy === true;
         applyPopupTheme(themeEl.value);
       }
     );
@@ -57,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hideDelay: parseInt(hideDelayEl.value, 10),
       ttsLang: ttsLangEl.value,
       studyMode: studyModeEl.checked,
-      autoSave: autoSaveEl.checked,
+      autoCopy: autoCopyEl.checked,
     };
     applyPopupTheme(themeEl.value);
     chrome.storage.sync.set(settings, () => {
@@ -65,24 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 自动保存：任何配置变更立即生效
   themeEl.addEventListener('change', saveSettings);
   triggerEl.addEventListener('change', saveSettings);
   hideDelayEl.addEventListener('change', saveSettings);
   ttsLangEl.addEventListener('change', saveSettings);
   studyModeEl.addEventListener('change', saveSettings);
-  autoSaveEl.addEventListener('change', saveSettings);
+  autoCopyEl.addEventListener('change', saveSettings);
 
   saveBtn.addEventListener('click', saveSettings);
-
-  syncBtn.addEventListener('click', () => {
-    showStatus('同步中...');
-    chrome.runtime.sendMessage({ type: 'SYNC_OBSIDIAN' }, (response) => {
-      if (response && response.success) {
-        showStatus('同步成功 ✅', 'success');
-      } else {
-        showStatus('同步失败 ❌', 'error');
-      }
-    });
-  });
 });

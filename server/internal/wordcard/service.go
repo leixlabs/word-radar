@@ -15,31 +15,34 @@ import (
 	"word-radar/server/internal/storage"
 )
 
-const promptVersion = "v4-wordcard"
-
 // Service 单词卡生成服务
 // 架构上解耦：词典 API 提供基础数据，LLM 提供记忆增强数据，Service 负责组装
 // dict APIs → IPA, meanings, examples (base layer)
 // LLM → imagery, breakdown, etymology, cn_core, contrast, word_family, etc. (enhancement layer)
+//
+// 字段定义（key/label/icon/layer/type/description）完全由配置驱动。
+// 新增/删除/修改字段只需改 config.yaml 中的 wordcard.fields，无需改代码。
 type Service struct {
 	db         *storage.DB
 	aggregator *dict.Aggregator
 	client     *llm.Client
 	cfg        config.LLMConfig
+	wcCfg      config.WordCardConfig
 	log        *slog.Logger
 }
 
 // NewService 创建单词卡服务
-func NewService(db *storage.DB, aggregator *dict.Aggregator, cfg config.LLMConfig) *Service {
+func NewService(db *storage.DB, aggregator *dict.Aggregator, llmCfg config.LLMConfig, wcCfg config.WordCardConfig) *Service {
 	var client *llm.Client
-	if cfg.Enabled && cfg.APIURL != "" && cfg.APIKey != "" {
-		client = llm.NewClient(cfg.APIURL, cfg.APIKey, cfg.Model, cfg.Temperature)
+	if llmCfg.Enabled && llmCfg.APIURL != "" && llmCfg.APIKey != "" {
+		client = llm.NewClient(llmCfg.APIURL, llmCfg.APIKey, llmCfg.Model, llmCfg.Temperature)
 	}
 	return &Service{
 		db:         db,
 		aggregator: aggregator,
 		client:     client,
-		cfg:        cfg,
+		cfg:        llmCfg,
+		wcCfg:      wcCfg,
 		log:        logger.L(),
 	}
 }
@@ -67,19 +70,19 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 	}
 
 	// 2. 读 LLM 缓存
-	var llmPart *LLMResult
+	var llmPart LLMResult
 	if s.IsAvailable() {
-		cached, ok, err := s.db.GetLLMAnalysis(word, s.cfg.Provider, s.cfg.Model, promptVersion)
+		cached, ok, err := s.db.GetLLMAnalysis(word, s.cfg.Provider, s.cfg.Model, s.wcCfg.PromptVersion)
 		if err != nil {
 			s.log.Debug("wordcard llm cache read error",
 				slog.String("word", word),
 				slog.String("error", err.Error()),
 			)
-		} else if ok && cached.SchemaVersion == schemaVersion && cached.Result != "" {
+		} else if ok && cached.SchemaVersion == s.wcCfg.SchemaVersion && cached.Result != "" {
 			var cachedResult LLMResult
 			if err := json.Unmarshal([]byte(cached.Result), &cachedResult); err == nil {
 				s.log.Info("wordcard llm cache hit", slog.String("word", word))
-				llmPart = &cachedResult
+				llmPart = cachedResult
 			}
 		}
 	}
@@ -89,8 +92,8 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 		s.log.Info("wordcard llm cache miss, calling llm", slog.String("word", word))
 
 		start := time.Now()
-		schema := BuildJSONSchema()
-		raw, tokens, err := s.client.ChatCompletionWithSchema(systemPrompt, buildUserPrompt(word, dictResult), schema)
+		schema := BuildJSONSchema(s.wcCfg)
+		raw, tokens, err := s.client.ChatCompletionWithSchema(s.wcCfg.SystemPrompt, s.buildUserPrompt(word, dictResult), schema)
 		elapsed := time.Since(start)
 
 		if err != nil {
@@ -116,7 +119,7 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 			)
 			return s.buildFallbackCard(word, dictResult), nil
 		}
-		llmPart = &result
+		llmPart = result
 
 		// 写入缓存
 		resultJSON, _ := json.Marshal(result)
@@ -125,8 +128,8 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 			Word:          word,
 			Provider:      s.cfg.Provider,
 			Model:         s.cfg.Model,
-			PromptVersion: promptVersion,
-			SchemaVersion: schemaVersion,
+			PromptVersion: s.wcCfg.PromptVersion,
+			SchemaVersion: s.wcCfg.SchemaVersion,
 			Result:        string(resultJSON),
 			RawResponse:   raw,
 			TokensUsed:    tokens,
@@ -145,44 +148,10 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 	return card, nil
 }
 
-// aspectDef 定义后端已知的 aspect 元数据
-// 新增 aspect: 在此 map 中添加一行，前端无需修改
-type aspectDef struct {
-	Label string
-	Icon  string
-	Layer string
-}
-
-var aspectMeta = map[string]aspectDef{
-	// Core — 必填，决定"能否记住"
-	"imagery":        {Label: "形象联想", Icon: "🎨", Layer: "core"},
-	"breakdown":      {Label: "单词拆解", Icon: "🧩", Layer: "core"},
-	"etymology":      {Label: "词源", Icon: "📜", Layer: "core"},
-	"cn_core":        {Label: "核心释义", Icon: "💡", Layer: "core"},
-	"example":        {Label: "例句", Icon: "📖", Layer: "core"},
-	"simple_english": {Label: "简单解释", Icon: "📝", Layer: "core"},
-
-	// Enhancement — 区分，防止混淆
-	"contrast":    {Label: "易混对比", Icon: "⚡", Layer: "enhancement"},
-	"word_family": {Label: "同根词", Icon: "🌳", Layer: "enhancement"},
-
-	// Polish — 可选，加深记忆
-	"pronunciation_trap": {Label: "发音提示", Icon: "🎯", Layer: "polish"},
-	"memory_hook":        {Label: "记忆钩子", Icon: "🔗", Layer: "polish"},
-	"register":           {Label: "使用语域", Icon: "🏷️", Layer: "polish"},
-}
-
-// aspectOrder 控制 aspect 输出顺序。aspectMeta 中但未列出的放在末尾。
-var aspectOrder = []string{
-	"imagery", "breakdown", "etymology", "cn_core", "example", "simple_english",
-	"contrast", "word_family",
-	"pronunciation_trap", "memory_hook", "register",
-}
-
 // buildCard 组装完整单词卡
 // dict 数据注入 IPA
-// LLM 数据映射为通用 aspects 数组
-func (s *Service) buildCard(word string, dictResult *model.WordResult, llmPart *LLMResult) *WordCard {
+// LLM 数据按配置 fields 顺序映射为通用 aspects 数组
+func (s *Service) buildCard(word string, dictResult *model.WordResult, llmPart LLMResult) *WordCard {
 	card := &WordCard{Word: word}
 
 	if dictResult != nil {
@@ -198,163 +167,64 @@ func (s *Service) buildCard(word string, dictResult *model.WordResult, llmPart *
 			Model:    s.cfg.Model,
 		})
 
-		// 按 order 迭代，构建有序 aspects
-		seen := make(map[string]bool)
-		for _, key := range aspectOrder {
-			val, vals, hasVal := s.extractAspectValue(llmPart, key)
-			if !hasVal {
-				continue
-			}
-			meta := aspectMeta[key]
-			card.Aspects = append(card.Aspects, Aspect{
-				Key:    key,
-				Label:  meta.Label,
-				Icon:   meta.Icon,
-				Value:  val,
-				Values: vals,
-				Layer:  meta.Layer,
-			})
-			seen[key] = true
-		}
-
-		// 兜底：aspectMeta 中有但 aspectOrder 遗漏的
-		for key, meta := range aspectMeta {
-			if seen[key] {
-				continue
-			}
-			val, vals, hasVal := s.extractAspectValue(llmPart, key)
+		// 按配置 fields 顺序迭代，构建有序 aspects
+		for _, f := range s.wcCfg.Fields {
+			val, vals, hasVal := extractAspectValue(llmPart, f.Key, f.Type)
 			if !hasVal {
 				continue
 			}
 			card.Aspects = append(card.Aspects, Aspect{
-				Key:    key,
-				Label:  meta.Label,
-				Icon:   meta.Icon,
+				Key:    f.Key,
+				Label:  f.Label,
+				Icon:   f.Icon,
 				Value:  val,
 				Values: vals,
-				Layer:  meta.Layer,
+				Layer:  f.Layer,
 			})
 		}
 	}
 
 	// 词典例句：只有 LLM 没有提供 example aspect 时，使用词典例句作为降级
-	if len(card.Aspects) == 0 || !s.hasAspectKey(card.Aspects, "example") {
+	if len(card.Aspects) == 0 || !hasAspectKey(card.Aspects, "example") {
 		if dictResult != nil && len(dictResult.Examples) > 0 {
-			meta := aspectMeta["example"]
-			card.Aspects = append(card.Aspects, Aspect{
-				Key:   "example",
-				Label: meta.Label,
-				Icon:  meta.Icon,
-				Value: fmt.Sprintf("\"%s\"", dictResult.Examples[0]),
-				Layer: meta.Layer,
-			})
+			if field := findField(s.wcCfg.Fields, "example"); field != nil {
+				card.Aspects = append(card.Aspects, Aspect{
+					Key:   "example",
+					Label: field.Label,
+					Icon:  field.Icon,
+					Value: fmt.Sprintf("\"%s\"", dictResult.Examples[0]),
+					Layer: field.Layer,
+				})
+			}
 		}
 	}
 
 	return card
 }
 
-// extractAspectValue 从 LLMResult 中提取指定 key 的值
-func (s *Service) extractAspectValue(llmPart *LLMResult, key string) (val string, vals []string, hasVal bool) {
-	switch key {
-	case "imagery":
-		if llmPart.Imagery != "" {
-			return llmPart.Imagery, nil, true
-		}
-	case "breakdown":
-		if llmPart.Breakdown != "" {
-			return llmPart.Breakdown, nil, true
-		}
-	case "etymology":
-		if llmPart.Etymology != "" {
-			return llmPart.Etymology, nil, true
-		}
-	case "cn_core":
-		if llmPart.CNCore != "" {
-			return llmPart.CNCore, nil, true
-		}
-	case "example":
-		if llmPart.Example != "" {
-			return llmPart.Example, nil, true
-		}
-	case "simple_english":
-		if llmPart.SimpleEnglish != "" {
-			return llmPart.SimpleEnglish, nil, true
-		}
-	case "contrast":
-		if llmPart.Contrast != "" {
-			return llmPart.Contrast, nil, true
-		}
-	case "word_family":
-		if len(llmPart.WordFamily) > 0 {
-			return "", llmPart.WordFamily, true
-		}
-	case "pronunciation_trap":
-		if llmPart.PronunciationTrap != "" {
-			return llmPart.PronunciationTrap, nil, true
-		}
-	case "memory_hook":
-		if llmPart.MemoryHook != "" {
-			return llmPart.MemoryHook, nil, true
-		}
-	case "register":
-		if llmPart.Register != "" {
-			return llmPart.Register, nil, true
-		}
-	}
-	return "", nil, false
-}
-
-// hasAspectKey 检查 aspects 数组中是否已存在指定 key
-func (s *Service) hasAspectKey(aspects []Aspect, key string) bool {
-	for _, a := range aspects {
-		if a.Key == key {
-			return true
-		}
-	}
-	return false
-}
-
 // BuildFallbackCard 构建纯词典降级卡片（无 LLM 时），导出供 handler 使用
-func BuildFallbackCard(dictResult *model.WordResult) *WordCard {
-	word := ""
-	if dictResult != nil {
+func (s *Service) BuildFallbackCard(dictResult *model.WordResult) *WordCard {
+	return s.buildFallbackCard("", dictResult)
+}
+
+// buildFallbackCard 纯词典降级卡片（无 LLM 时）— 内部使用
+func (s *Service) buildFallbackCard(word string, dictResult *model.WordResult) *WordCard {
+	if dictResult != nil && word == "" {
 		word = dictResult.Word
 	}
 	card := &WordCard{Word: word}
 	if dictResult != nil {
 		card.IPA = dictResult.Phonetic
 		if len(dictResult.Examples) > 0 {
-			meta := aspectMeta["example"]
-			card.Aspects = append(card.Aspects, Aspect{
-				Key:   "example",
-				Label: meta.Label,
-				Icon:  meta.Icon,
-				Value: fmt.Sprintf("\"%s\"", dictResult.Examples[0]),
-				Layer: meta.Layer,
-			})
-		}
-		for _, src := range dictResult.Sources {
-			card.Sources = append(card.Sources, src)
-		}
-	}
-	return card
-}
-
-// buildFallbackCard 纯词典降级卡片（无 LLM 时）— 内部使用
-func (s *Service) buildFallbackCard(word string, dictResult *model.WordResult) *WordCard {
-	card := &WordCard{Word: word}
-	if dictResult != nil {
-		card.IPA = dictResult.Phonetic
-		if len(dictResult.Examples) > 0 {
-			meta := aspectMeta["example"]
-			card.Aspects = append(card.Aspects, Aspect{
-				Key:   "example",
-				Label: meta.Label,
-				Icon:  meta.Icon,
-				Value: fmt.Sprintf("\"%s\"", dictResult.Examples[0]),
-				Layer: meta.Layer,
-			})
+			if field := findField(s.wcCfg.Fields, "example"); field != nil {
+				card.Aspects = append(card.Aspects, Aspect{
+					Key:   "example",
+					Label: field.Label,
+					Icon:  field.Icon,
+					Value: fmt.Sprintf("\"%s\"", dictResult.Examples[0]),
+					Layer: field.Layer,
+				})
+			}
 		}
 		for _, src := range dictResult.Sources {
 			card.Sources = append(card.Sources, src)

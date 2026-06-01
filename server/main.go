@@ -47,7 +47,7 @@ func main() {
 	// 初始化模块
 	aggregator := dict.NewAggregator(db, cfg.Dict.CacheTTL)
 	obsGen := obsidian.NewGenerator(&cfg.Obsidian)
-	wordcardSvc := wordcard.NewService(db, aggregator, cfg.LLM)
+	wordcardSvc := wordcard.NewService(db, aggregator, cfg.LLM, cfg.WordCard)
 	handler := api.NewHandler(cfg, db, aggregator, obsGen, wordcardSvc)
 	router := api.NewRouter(handler)
 	log.Info("modules initialized",

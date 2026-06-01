@@ -86,7 +86,7 @@
     </div>
     <div class="desc">
       Look up a word. Returns phonetic, definitions, examples, and audio URL.
-      If <code>context</code> is provided, the word is automatically saved to the word list and synced to Obsidian.
+      If <code>context</code> is provided, the word is automatically saved to the word list.
     </div>
     <div class="params">
       <span class="param">q (required)</span> — the word to look up<br>
@@ -118,14 +118,6 @@
       <span class="param param-opt">limit</span> — max records (default 20, max 100)<br>
       <span class="param param-opt">offset</span> — pagination offset (default 0)
     </div>
-  </div>
-
-  <div class="endpoint">
-    <div class="endpoint-header">
-      <span class="method method-post">POST</span>
-      <span class="path">/api/words/sync</span>
-    </div>
-    <div class="desc">Manually trigger sync of unsaved words to Obsidian. Returns the generated file path.</div>
   </div>
 
   <div class="endpoint">
@@ -164,12 +156,6 @@
     "last_lookup_at": "2026-05-31T07:59:29Z"
   }
 ]</pre>
-
-<pre>$ curl -X POST http://localhost:{{.Port}}/api/words/sync
-{
-  "path": ".../Word Radar - 2026-06-01.md",
-  "message": "synced to obsidian"
-}</pre>
 
   <div class="footer">
     Word Radar &mdash; <a style="color:#6366f1;" href="/health">/health</a>

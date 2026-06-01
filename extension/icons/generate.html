@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Word Radar Icon Generator</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+  h2 { color: #38bdf8; }
+  .preview {
+    display: flex;
+    gap: 16px;
+    margin: 20px 0;
+    align-items: center;
+  }
+  .preview canvas {
+    border: 2px solid #334155;
+    border-radius: 8px;
+  }
+  .preview div {
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: center;
+  }
+  button {
+    background: #0ea5e9;
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { background: #0284c7; }
+  .done { color: #22d3ee; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h2>Word Radar · Icon Generator</h2>
+<p>Click the button to download 16×16, 48×48, and 128×128 PNG icons.</p>
+
+<div class="preview">
+  <div><canvas id="c16" width="16" height="16"></canvas>16×16</div>
+  <div><canvas id="c48" width="48" height="48"></canvas>48×48</div>
+  <div><canvas id="c128" width="128" height="128"></canvas>128×128</div>
+</div>
+
+<button onclick="downloadAll()">Download All Icons</button>
+<div class="done" id="msg"></div>
+
+<script>
+async function drawIcon(canvas, size) {
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const cx = size / 2, cy = size / 2, r = size / 2 - 1;
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  bg.addColorStop(0, '#1e293b');
+  bg.addColorStop(1, '#0f172a');
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = Math.max(1, size / 64);
+  ctx.stroke();
+
+  // Radar rings
+  for (let ratio of [0.25, 0.5, 0.75]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * ratio, 0, Math.PI * 2);
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = Math.max(0.5, size / 256);
+    ctx.globalAlpha = 0.5 - ratio * 0.3;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Crosshairs
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = Math.max(0.5, size / 256);
+  ctx.globalAlpha = 0.3;
+  ctx.beginPath(); ctx.moveTo(cx, 1); ctx.lineTo(cx, size - 1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(1, cy); ctx.lineTo(size - 1, cy); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Radar sweep arc
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI / 2, 0);
+  const sweep = ctx.createLinearGradient(cx + r, cy - r, cx, cy);
+  sweep.addColorStop(0, 'rgba(34,211,238,0.9)');
+  sweep.addColorStop(1, 'rgba(34,211,238,0.1)');
+  ctx.strokeStyle = sweep;
+  ctx.lineWidth = Math.max(2, size / 48);
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // W letter
+  const fontSize = size * 0.5;
+  ctx.font = `800 ${fontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  const letter = ctx.createLinearGradient(0, cy - fontSize * 0.3, 0, cy + fontSize * 0.3);
+  letter.addColorStop(0, '#38bdf8');
+  letter.addColorStop(1, '#0ea5e9');
+  ctx.fillStyle = letter;
+  ctx.fillText('W', cx, cy + fontSize * 0.3);
+}
+
+function downloadPNG(canvas, filename) {
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+async function downloadAll() {
+  const sizes = [
+    { canvas: document.getElementById('c16'),  size: 16,  file: 'icon16.png' },
+    { canvas: document.getElementById('c48'),  size: 48,  file: 'icon48.png' },
+    { canvas: document.getElementById('c128'), size: 128, file: 'icon128.png' },
+  ];
+
+  for (let { canvas, size, file } of sizes) {
+    await drawIcon(canvas, size);
+    downloadPNG(canvas, file);
+  }
+
+  document.getElementById('msg').textContent =
+    '✓ Downloaded icon16.png, icon48.png, icon128.png — move them into extension/icons/';
+}
+
+// Preview on load
+(async () => {
+  for (let { canvas, size } of [
+    { canvas: document.getElementById('c16'),  size: 16 },
+    { canvas: document.getElementById('c48'),  size: 48 },
+    { canvas: document.getElementById('c128'), size: 128 },
+  ]) {
+    await drawIcon(canvas, size);
+  }
+})();
+</script>
+</body>
+</html>

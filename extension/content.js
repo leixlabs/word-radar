@@ -6,11 +6,11 @@
   let settings = {
     trigger: 'click',
     server: DEFAULT_SERVER,
-    autoSave: true,
     ttsLang: 'en-US',
     ttsRate: 1.0,
     hideDelay: 800,
     studyMode: true,
+    autoCopy: false,
     theme: 'system',
   };
 
@@ -45,7 +45,7 @@
 
   // 加载设置
   chrome.storage.sync.get(
-    ['trigger', 'server', 'autoSave', 'ttsLang', 'ttsRate', 'hideDelay', 'studyMode', 'theme', 'popupWidth', 'popupHeight'],
+    ['trigger', 'server', 'ttsLang', 'ttsRate', 'hideDelay', 'studyMode', 'autoCopy', 'theme', 'popupWidth', 'popupHeight'],
     (items) => {
       settings = { ...settings, ...items };
       if (items.popupWidth) popupSize.width = items.popupWidth;
@@ -561,11 +561,10 @@
 
   // ====== 后端通信 ======
   // 查词（字典信息），快速响应
-  // 如果 autoSave 关闭，则不传 context，后端不会保存
   async function lookupWord(word, context, signal) {
     try {
       const params = new URLSearchParams({ q: word });
-      if (settings.autoSave && context) {
+      if (context) {
         params.set('context', context);
       }
       const resp = await fetch(`${settings.server}/api/lookup?${params}`, { signal });
@@ -592,7 +591,7 @@
     }
   }
 
-  // 手动保存（无视 autoSave 设置）
+  // 手动保存
   async function saveWord(word, context) {
     try {
       const params = new URLSearchParams({
@@ -666,6 +665,29 @@
 
   const debouncedProcessWord = debounce(processWordResult, 120);
 
+  // ====== 选中 & 复制到剪贴板 ======
+  function selectAndCopyWord(word) {
+    // 高亮后通过 activeWordNode 设置原生选中
+    if (activeWordNode) {
+      try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(activeWordNode);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (e) {
+        // silent — 跨节点等场景下可能失败
+      }
+    }
+
+    // autoCopy 开启时自动复制到剪贴板
+    if (settings.autoCopy) {
+      navigator.clipboard.writeText(word).catch(() => {
+        // 部分页面（非 HTTPS / 非 secure context）可能不可用，静默忽略
+      });
+    }
+  }
+
   // ====== 事件监听 ======
   // 单击取词
   document.addEventListener('click', (e) => {
@@ -689,6 +711,7 @@
 
     // 高亮单词
     highlightRange(result.range);
+    selectAndCopyWord(result.word);
 
     debouncedProcessWord(result);
   });
@@ -709,6 +732,7 @@
     e.stopPropagation();
 
     highlightRange(result.range);
+    selectAndCopyWord(result.word);
 
     debouncedProcessWord(result);
   });
