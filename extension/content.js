@@ -12,6 +12,8 @@
     studyMode: true,
     autoCopy: false,
     theme: 'system',
+    fontSize: 'normal',
+    keepHighlight: false,
   };
 
   let systemDarkQuery = null;
@@ -30,6 +32,22 @@
     }
   }
 
+  function getFontSizePx(level) {
+    const sizes = {
+      'small': '13px',
+      'normal': '14px',
+      'large': '16px',
+      'xlarge': '18px',
+    };
+    return sizes[level] || '14px';
+  }
+
+  function applyFontSize() {
+    if (popupEl) {
+      popupEl.style.setProperty('--wr-font-size', getFontSizePx(settings.fontSize));
+    }
+  }
+
   function setupSystemThemeListener() {
     if (systemDarkQuery) {
       systemDarkQuery.removeEventListener('change', applyPopupTheme);
@@ -45,7 +63,7 @@
 
   // 加载设置
   chrome.storage.sync.get(
-    ['trigger', 'server', 'ttsLang', 'ttsRate', 'hideDelay', 'studyMode', 'autoCopy', 'theme', 'popupWidth', 'popupHeight'],
+    ['trigger', 'server', 'ttsLang', 'ttsRate', 'hideDelay', 'studyMode', 'autoCopy', 'theme', 'fontSize', 'keepHighlight', 'popupWidth', 'popupHeight'],
     (items) => {
       settings = { ...settings, ...items };
       if (items.popupWidth) popupSize.width = items.popupWidth;
@@ -62,6 +80,9 @@
     if (changes.theme) {
       setupSystemThemeListener();
       applyPopupTheme();
+    }
+    if (changes.fontSize) {
+      applyFontSize();
     }
   });
 
@@ -174,8 +195,12 @@
   }
 
   // ====== 高亮 ======
+  let highlightedNodes = [];   // 所有高亮 span 的数组（keepHighlight 开启时累计）
+
   function highlightRange(range) {
-    clearHighlight();
+    if (!settings.keepHighlight) {
+      clearHighlight();
+    }
     if (!range) return;
 
     try {
@@ -188,6 +213,7 @@
       activeWordNode = span;
       activeWordRange = range.cloneRange();
       range.surroundContents(span);
+      highlightedNodes.push(span);
     } catch (e) {
       // 如果 range 跨节点，fallback 到原生 selection
       const sel = window.getSelection();
@@ -198,15 +224,18 @@
   }
 
   function clearHighlight() {
-    // 移除 span 包裹的高亮
-    if (activeWordNode && activeWordNode.parentNode) {
-      const parent = activeWordNode.parentNode;
-      while (activeWordNode.firstChild) {
-        parent.insertBefore(activeWordNode.firstChild, activeWordNode);
+    // 移除所有高亮 span
+    highlightedNodes.forEach((span) => {
+      if (span.parentNode) {
+        const parent = span.parentNode;
+        while (span.firstChild) {
+          parent.insertBefore(span.firstChild, span);
+        }
+        parent.removeChild(span);
       }
-      parent.removeChild(activeWordNode);
-      activeWordNode = null;
-    }
+    });
+    highlightedNodes = [];
+    activeWordNode = null;
     activeWordRange = null;
 
     // 同时清除原生 selection
@@ -421,6 +450,7 @@
     popupEl.style.top = `${top}px`;
     popupEl.style.display = 'flex';
     applyPopupTheme();
+    applyFontSize();
 
     // 新单词默认不 pin
     isPinned = false;
@@ -440,7 +470,9 @@
     if (popupEl) {
       popupEl.style.display = 'none';
     }
-    clearHighlight();
+    if (!settings.keepHighlight) {
+      clearHighlight();
+    }
     resetEtymologyProgress();
   }
 
@@ -462,7 +494,7 @@
       if (layer !== 'core' && layerAspects.length > 0) {
         const sep = document.createElement('div');
         sep.className = 'word-radar-section-title';
-        sep.style.fontSize = '10px';
+        sep.style.fontSize = '0.714em';
         sep.style.opacity = '0.5';
         sep.style.marginTop = '4px';
         sep.textContent = layer === 'enhancement' ? '区分' : '加深';

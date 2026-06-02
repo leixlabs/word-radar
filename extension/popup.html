@@ -47,6 +47,16 @@
     </div>
 
     <div class="popup-section">
+      <label for="fontSize">字体大小</label>
+      <select id="fontSize">
+        <option value="small">小</option>
+        <option value="normal" selected>正常</option>
+        <option value="large">大</option>
+        <option value="xlarge">特大</option>
+      </select>
+    </div>
+
+    <div class="popup-section">
       <label for="ttsLang">TTS 语音</label>
       <select id="ttsLang">
         <option value="en-US">美式英语</option>
@@ -65,6 +75,13 @@
       <label class="checkbox-label">
         <input type="checkbox" id="autoCopy" />
         <span>选中单词时自动复制到剪贴板</span>
+      </label>
+    </div>
+
+    <div class="popup-section">
+      <label class="checkbox-label">
+        <input type="checkbox" id="keepHighlight" />
+        <span>保留查询标记（关闭弹窗后高亮不消失）</span>
       </label>
     </div>
 

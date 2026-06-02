@@ -27,42 +27,41 @@ dataDir: "./data"                 # SQLite 数据库与缓存目录
 # fields 数组的顺序决定前端 Aspect 输出顺序。
 wordcard:
   promptVersion: "v4-wordcard"   # LLM 缓存版本 key，修改后旧缓存失效
-  schemaVersion: "v2"            # Schema 版本，修改字段定义后递增以清除旧缓存
+  schemaVersion: "v3"            # Schema 版本，修改字段定义后递增以清除旧缓存
   systemPrompt: |
     You are an expert English vocabulary teacher who helps Chinese learners build deep, unforgettable mental connections to English words.
 
     Your goal is NOT to provide dictionary definitions. Dictionary meanings are already given. Your job is to create VIVID, CONCRETE mental anchors via the JSON structure defined by the required schema.
 
-    === RULES ===
-    1. Output MUST be valid JSON matching the schema exactly.
-    2. Do NOT wrap output in markdown code blocks.
-    3. Do NOT include the word itself or IPA in the output — those are provided separately.
-    4. Core fields MUST be filled — no empty strings.
-    5. Enhancement fields: fill if applicable, otherwise "" or [].
-    6. Polish fields: fill if applicable, otherwise "".
-    7. imagery and cn_core are the MOST important — make them vivid and unforgettable.
-    8. breakdown focuses on word structure (prefix + root + suffix).
-    9. etymology focuses on word origin/story (historical evolution).
-    10. simple_english uses basic vocabulary a learner would understand.
-
   fields:
-    # === Core — 必填，决定"能否记住" ===
-    - key: imagery
-      label: "形象联想"
-      icon: "🎨"
+    - key: respelling
+      label: "发音拼写"
+      icon: "🗣️"
       layer: core
       type: string
       required: true
-      description: "核心形象联想。用中文描述这个单词唤起的动态画面/场景，必须有画面感。如 '双手合握抓住全部碎片'"
-
+      description: "Pronunciation Respelling。用常见英文字母组合标注发音，而非 IPA 音标。便于不熟悉 IPA 的学习者直接拼读。如 comprehensive → 'kom-pri-HEN-siv', comprehend → 'kom-pri-HEND', pneumonia → 'nyoo-MOH-nyuh'。重读音节大写"
     - key: breakdown
-      label: "单词拆解"
+      label: "拆解"
       icon: "🧩"
       layer: core
       type: string
       required: true
       description: "词根词缀拆解骨架。格式: '前缀 (意思) + 词根 (意思) [+ 后缀 (意思)]'。如 'com- (一起) + prehendere (抓住)'"
-
+    - key: simple_english
+      label: "英译英"
+      icon: "📝"
+      layer: core
+      type: string
+      required: true
+      description: "用简单英语解释这个词（英语学习者友好，用基础词汇）。如 'to understand something completely, to grasp the meaning'"
+    - key: picture
+      label: "词画面"
+      icon: "💡"
+      layer: core
+      type: string
+      required: true
+      description: "单词描绘的画面，英语偏描述动态 (dynamic)，汉语偏描述静态 (static),用中文介绍单词的画面如果有的话"      
     - key: etymology
       label: "词源"
       icon: "📜"
@@ -70,30 +69,14 @@ wordcard:
       type: string
       required: true
       description: "词源故事。一句话说明这个单词的历史来源/演变过程。如 '来自拉丁语 comprehendere, 意为抓住、包含, 后演变为理解'"
-
-    - key: cn_core
-      label: "核心释义"
-      icon: "💡"
+    - key: respelling
+      label: "发音拼写"
+      icon: "🗣️"
       layer: core
       type: string
       required: true
-      description: "灵魂翻译。不是词典释义，是基于 imagery 的场景翻译。4-6字，简洁有力。如 '合掌抓住全部'"
+      description: "Pronunciation Respelling。用常见英文字母组合标注发音，而非 IPA 音标。便于不熟悉 IPA 的学习者直接拼读。如 comprehensive → 'kom-pri-HEN-siv', comprehend → 'kom-pri-HEND', pneumonia → 'nyoo-MOH-nyuh'。重读音节大写"
 
-    - key: example
-      label: "例句"
-      icon: "📖"
-      layer: core
-      type: string
-      required: true
-      description: "一句自然的上下文例句，带英文引号。如 '\"I finally comprehend the structure.\"'"
-
-    - key: simple_english
-      label: "简单解释"
-      icon: "📝"
-      layer: core
-      type: string
-      required: true
-      description: "用简单英语解释这个词（英语学习者友好，用基础词汇）。如 'to understand something completely, to grasp the meaning'"
 
     # === Enhancement — 区分，防止混淆 ===
     - key: contrast
@@ -102,8 +85,7 @@ wordcard:
       layer: enhancement
       type: string
       required: true
-      description: "与易混淆词对比，磨锐含义边界。格式: 'X (特征A) ≠ Y (特征B)'。如 'comprehend (主动抓) ≠ understand (被动覆盖)'。没有则空字符串"
-
+      description: "与易混淆词对比，有些词翻译成中文意思差不多但是在英语里表达的具体场景不同"
     - key: word_family
       label: "同根词"
       icon: "🌳"
@@ -113,14 +95,6 @@ wordcard:
       description: "同根词列表，帮助扩展词汇。如 ['apprehend', 'comprehensive', 'prehensile']。没有则空数组"
 
     # === Polish — 可选，加深记忆 ===
-    - key: pronunciation_trap
-      label: "发音提示"
-      icon: "🎯"
-      layer: polish
-      type: string
-      required: true
-      description: "中文使用者常见发音错误。如 '重音在 -HEND, 不是 com-'。没有则空字符串"
-
     - key: memory_hook
       label: "记忆钩子"
       icon: "🔗"

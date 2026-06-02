@@ -3,9 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const triggerEl = document.getElementById('trigger');
   const serverEl = document.getElementById('server');
   const hideDelayEl = document.getElementById('hideDelay');
+  const fontSizeEl = document.getElementById('fontSize');
   const ttsLangEl = document.getElementById('ttsLang');
   const studyModeEl = document.getElementById('studyMode');
   const autoCopyEl = document.getElementById('autoCopy');
+  const keepHighlightEl = document.getElementById('keepHighlight');
   const saveBtn = document.getElementById('saveBtn');
   const statusEl = document.getElementById('status');
 
@@ -23,15 +25,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function loadSettings() {
     chrome.storage.sync.get(
-      ['theme', 'trigger', 'server', 'hideDelay', 'ttsLang', 'ttsRate', 'studyMode', 'autoCopy'],
+      ['theme', 'trigger', 'server', 'hideDelay', 'fontSize', 'ttsLang', 'ttsRate', 'studyMode', 'autoCopy', 'keepHighlight'],
       (items) => {
         themeEl.value = items.theme || 'system';
         triggerEl.value = items.trigger || 'click';
         serverEl.value = items.server || 'http://localhost:8787';
         hideDelayEl.value = String(items.hideDelay || 800);
+        fontSizeEl.value = items.fontSize || 'normal';
         ttsLangEl.value = items.ttsLang || 'en-US';
         studyModeEl.checked = items.studyMode !== false;
         autoCopyEl.checked = items.autoCopy === true;
+        keepHighlightEl.checked = items.keepHighlight === true;
         applyPopupTheme(themeEl.value);
       }
     );
@@ -54,9 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
       trigger: triggerEl.value,
       server: serverEl.value.trim(),
       hideDelay: parseInt(hideDelayEl.value, 10),
+      fontSize: fontSizeEl.value,
       ttsLang: ttsLangEl.value,
       studyMode: studyModeEl.checked,
       autoCopy: autoCopyEl.checked,
+      keepHighlight: keepHighlightEl.checked,
     };
     applyPopupTheme(themeEl.value);
     chrome.storage.sync.set(settings, () => {
@@ -67,8 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
   themeEl.addEventListener('change', saveSettings);
   triggerEl.addEventListener('change', saveSettings);
   hideDelayEl.addEventListener('change', saveSettings);
+  fontSizeEl.addEventListener('change', saveSettings);
   ttsLangEl.addEventListener('change', saveSettings);
   studyModeEl.addEventListener('change', saveSettings);
+  keepHighlightEl.addEventListener('change', saveSettings);
   autoCopyEl.addEventListener('change', saveSettings);
 
   saveBtn.addEventListener('click', saveSettings);
