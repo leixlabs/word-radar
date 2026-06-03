@@ -27,7 +27,7 @@ dataDir: "./data"                 # SQLite 数据库与缓存目录
 # fields 数组的顺序决定前端 Aspect 输出顺序。
 wordcard:
   promptVersion: "v4-wordcard"   # LLM 缓存版本 key，修改后旧缓存失效
-  schemaVersion: "v3"            # Schema 版本，修改字段定义后递增以清除旧缓存
+  schemaVersion: "v4"            # Schema 版本，修改字段定义后递增以清除旧缓存
   systemPrompt: |
     You are an expert English vocabulary teacher who helps Chinese learners build deep, unforgettable mental connections to English words.
 
@@ -69,14 +69,6 @@ wordcard:
       type: string
       required: true
       description: "词源故事。一句话说明这个单词的历史来源/演变过程。如 '来自拉丁语 comprehendere, 意为抓住、包含, 后演变为理解'"
-    - key: respelling
-      label: "发音拼写"
-      icon: "🗣️"
-      layer: core
-      type: string
-      required: true
-      description: "Pronunciation Respelling。用常见英文字母组合标注发音，而非 IPA 音标。便于不熟悉 IPA 的学习者直接拼读。如 comprehensive → 'kom-pri-HEN-siv', comprehend → 'kom-pri-HEND', pneumonia → 'nyoo-MOH-nyuh'。重读音节大写"
-
 
     # === Enhancement — 区分，防止混淆 ===
     - key: contrast
