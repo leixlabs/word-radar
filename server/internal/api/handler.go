@@ -285,13 +285,6 @@ func (h *Handler) saveRecord(result *model.WordResult, context string) {
 		return
 	}
 	h.log.Debug("record saved", slog.String("word", result.Word))
-
-	// 自动同步到 Obsidian（只同步首次出现的新单词）
-	if path, err := h.syncToObsidian(); err != nil {
-		h.log.Error("auto sync failed", slog.String("error", err.Error()))
-	} else if path != "" {
-		h.log.Info("auto synced to obsidian", slog.String("path", path))
-	}
 }
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
