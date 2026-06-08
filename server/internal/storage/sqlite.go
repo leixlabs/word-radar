@@ -236,8 +236,13 @@ func (db *DB) GetCache(word, source, modelName string) (string, bool, error) {
 }
 
 // SetCache 设置查词缓存
+// ttl <= 0 表示永不过期（expires_at 为 NULL）
 func (db *DB) SetCache(word, source, modelName, result string, ttl time.Duration) error {
-	expiresAt := time.Now().Add(ttl).UTC()
+	var expiresAt *time.Time
+	if ttl > 0 {
+		t := time.Now().Add(ttl).UTC()
+		expiresAt = &t
+	}
 	_, err := db.conn.Exec(
 		`INSERT INTO lookup_cache (word, source, model, result, expires_at)
 		 VALUES (?, ?, ?, ?, ?)
@@ -248,6 +253,22 @@ func (db *DB) SetCache(word, source, modelName, result string, ttl time.Duration
 		word, source, modelName, result, expiresAt,
 	)
 	return err
+}
+
+// GetWordContext 获取单词最近一次查询的上下文（last_context）和 URL/Title
+// 用于传递给 LLM 作分析时提供用户的使用场景
+func (db *DB) GetWordContext(word string) (context, url, title string, err error) {
+	err = db.conn.QueryRow(
+		`SELECT last_context, last_url, last_title FROM words WHERE word = ?`,
+		word,
+	).Scan(&context, &url, &title)
+	if err == sql.ErrNoRows {
+		return "", "", "", nil
+	}
+	if err != nil {
+		return "", "", "", fmt.Errorf("get word context: %w", err)
+	}
+	return context, url, title, nil
 }
 
 // GetLLMAnalysis 获取 LLM 分析缓存，按 prompt_version 精确匹配

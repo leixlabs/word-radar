@@ -28,7 +28,7 @@ func NewClient(apiURL, apiKey, model string, temperature float64) *Client {
 		apiKey:      apiKey,
 		model:       model,
 		temperature: temperature,
-		client:      &http.Client{Timeout: 60 * time.Second},
+		client:      &http.Client{Timeout: 6 * time.Minute},
 	}
 }
 

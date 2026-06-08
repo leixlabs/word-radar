@@ -91,9 +91,12 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 	if llmPart == nil && s.IsAvailable() {
 		s.log.Info("wordcard llm cache miss, calling llm", slog.String("word", word))
 
+		// 获取用户查词上下文（不传词典数据给 LLM）
+		ctx, ctxURL, ctxTitle, _ := s.db.GetWordContext(word)
+
 		start := time.Now()
 		schema := BuildJSONSchema(s.wcCfg)
-		raw, tokens, err := s.client.ChatCompletionWithSchema(s.wcCfg.SystemPrompt, s.buildUserPrompt(word, dictResult), schema)
+		raw, tokens, err := s.client.ChatCompletionWithSchema(s.wcCfg.SystemPrompt, s.buildUserPrompt(word, ctx, ctxURL, ctxTitle), schema)
 		elapsed := time.Since(start)
 
 		if err != nil {

@@ -45,7 +45,7 @@ func main() {
 	log.Info("database initialized")
 
 	// 初始化模块
-	aggregator := dict.NewAggregator(db, cfg.Dict.CacheTTL)
+	aggregator := dict.NewAggregator(db, cfg.Dict.CacheTTL.AsDuration())
 	obsGen := obsidian.NewGenerator(&cfg.Obsidian)
 	wordcardSvc := wordcard.NewService(db, aggregator, cfg.LLM, cfg.WordCard)
 	handler := api.NewHandler(cfg, db, aggregator, obsGen, wordcardSvc)
@@ -61,7 +61,7 @@ func main() {
 		Addr:         addr,
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second, // LLM calls may take longer
+		WriteTimeout: 7 * time.Minute, // LLM calls may take up to 6 min
 		IdleTimeout:  60 * time.Second,
 	}
 

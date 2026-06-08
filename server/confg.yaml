@@ -5,12 +5,12 @@ server:
   port: "8787"                    # 监听端口
 
 obsidian:
-  vaultPath: "/Users/lei/dev/ob"  # Obsidian Vault 路径
+  vaultPath: "/obsidian"  # Obsidian Vault 路径
   wordsDir: "英语学习/words"        # 生词本存储目录（相对于 Vault）
   dailyNoteFormat: "Word Radar - {date}.md"  # 每日笔记文件名格式
 
 dict:
-  cacheTTL: "168h"                # 词典缓存有效期（如 168h = 7天）
+  cacheTTL: "0"                # 词典缓存有效期（如 168h = 7天，设为 "0" 或 0 表示永不过期）
 
 llm:
   enabled: true                   # 是否启用 LLM 补充释义
@@ -20,18 +20,20 @@ llm:
   model: "gpt-5-nano"            # 模型名称
   temperature: 1.0                # LLM temperature（gpt-5-nano 等模型只支持 1）
 
-dataDir: "./data"                 # SQLite 数据库与缓存目录
+dataDir: "/app/data"                 # SQLite 数据库与缓存目录
 
 # === 单词卡生成配置 ===
 # 修改 fields 即可增减/调整单词卡字段，无需改代码。
 # fields 数组的顺序决定前端 Aspect 输出顺序。
 wordcard:
-  promptVersion: "v4-wordcard"   # LLM 缓存版本 key，修改后旧缓存失效
+  promptVersion: "v5-wordcard"   # LLM 缓存版本 key，修改后旧缓存失效
   schemaVersion: "v4"            # Schema 版本，修改字段定义后递增以清除旧缓存
   systemPrompt: |
     You are an expert English vocabulary teacher who helps Chinese learners build deep, unforgettable mental connections to English words.
 
-    Your goal is NOT to provide dictionary definitions. Dictionary meanings are already given. Your job is to create VIVID, CONCRETE mental anchors via the JSON structure defined by the required schema.
+    Your goal is NOT to provide dictionary definitions. The dictionary will be displayed separately. Your job is to create VIVID, CONCRETE mental anchors via the JSON structure defined by the required schema.
+
+    Rely on your own knowledge of English etymology, word roots, usage patterns, and common learner pitfalls. The user's lookup context (if provided) tells you where they encountered this word — use it to tailor your memory hooks.
 
   fields:
     - key: respelling

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -29,7 +30,40 @@ type ObsidianConfig struct {
 }
 
 type DictConfig struct {
-	CacheTTL time.Duration `yaml:"cacheTTL"`
+	CacheTTL durationOrZero `yaml:"cacheTTL"`
+}
+
+// durationOrZero extends time.Duration to accept "0" as a valid YAML / env value.
+// "0" without a unit suffix is treated as 0 (meaning "never expire").
+type durationOrZero time.Duration
+
+// UnmarshalYAML handles both standard duration strings ("168h", "0s") and bare "0".
+func (d *durationOrZero) UnmarshalYAML(value *yaml.Node) error {
+	// 1. Try string value
+	var s string
+	if err := value.Decode(&s); err == nil {
+		if s == "0" {
+			*d = 0
+			return nil
+		}
+		parsed, err := time.ParseDuration(s)
+		if err != nil {
+			return fmt.Errorf("invalid cacheTTL %q: %w", s, err)
+		}
+		*d = durationOrZero(parsed)
+		return nil
+	}
+	// 2. Try bare integer (YAML: cacheTTL: 0)
+	var i int64
+	if err := value.Decode(&i); err == nil {
+		*d = durationOrZero(i)
+		return nil
+	}
+	return fmt.Errorf("cannot decode cacheTTL: must be a duration string (e.g. 168h, 0s) or integer 0")
+}
+
+func (d durationOrZero) AsDuration() time.Duration {
+	return time.Duration(d)
 }
 
 type LLMConfig struct {
@@ -92,8 +126,11 @@ func Load(configPath string) *Config {
 		cfg.DataDir = v
 	}
 	if v := os.Getenv("DICT_CACHE_TTL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.Dict.CacheTTL = d
+		// Handle bare "0" (without unit suffix)
+		if v == "0" {
+			cfg.Dict.CacheTTL = 0
+		} else if d, err := time.ParseDuration(v); err == nil {
+			cfg.Dict.CacheTTL = durationOrZero(d)
 		}
 	}
 	if v := os.Getenv("LLM_ENABLED"); v != "" {
@@ -131,7 +168,7 @@ func defaultConfig() *Config {
 			DailyNoteFormat: "Word Radar - {date}.md",
 		},
 		Dict: DictConfig{
-			CacheTTL: 168 * time.Hour,
+			CacheTTL: durationOrZero(168 * time.Hour),
 		},
 		LLM: LLMConfig{
 			Enabled:     false,

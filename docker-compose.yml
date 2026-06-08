@@ -7,8 +7,8 @@ services:
     ports:
       - "8787:8787"
     volumes:
-      - ./data:/app/data
-      - /Users/lei/dev/ob:/obsidian
+      - /Users/lei/dev/db/word-radar:/app/data
+      - /Users/lei/dev/obsidian:/obsidian
       - ./server/confg.yaml:/app/confg.yaml # 配置挂载
     command: [ "--config", "/app/confg.yaml" ]
     # 环境变量仍可覆盖 confg.yaml 中的值（优先级更高）
