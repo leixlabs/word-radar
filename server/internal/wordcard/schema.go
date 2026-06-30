@@ -28,11 +28,13 @@ type Aspect struct {
 
 // WordCard 单词卡完整模型
 // 前端通过 aspects 数组迭代渲染，不再依赖具体字段名。
+// Warning 在 LLM 增强失败时携带用户友好的错误提示。
 type WordCard struct {
 	Word    string         `json:"word"`
 	IPA     string         `json:"ipa"`
 	Aspects []Aspect       `json:"aspects"`
 	Sources []model.Source `json:"sources"`
+	Warning string         `json:"warning,omitempty"`
 }
 
 // LLMResult LLM 返回的单词卡数据。

@@ -189,7 +189,7 @@
 
     const range = selection.getRangeAt(0);
     const node = range.startContainer;
-    const sentence = node.nodeType === TEXT_NODE ? getSentence(node.textContent, range.startOffset, range.endOffset) : '';
+    const sentence = node.nodeType === Node.TEXT_NODE ? getSentence(node.textContent, range.startOffset, range.endOffset) : '';
 
     return { word, sentence, range };
   }
@@ -481,6 +481,15 @@
   // 后端新增 aspect 时，前端无需修改
   function renderWordCard(container, card) {
     container.innerHTML = '<div class="word-radar-section-title">🧠 记忆增强</div>';
+
+    // 后端返回的警告（LLM 增强失败等），用户友好展示
+    if (card.warning) {
+      const warnEl = document.createElement('div');
+      warnEl.className = 'word-radar-warning';
+      warnEl.textContent = card.warning;
+      container.appendChild(warnEl);
+    }
+
     const aspects = card.aspects;
     if (!aspects || aspects.length === 0) return;
 
@@ -756,15 +765,17 @@
     if (settings.trigger !== 'dblclick') return;
     if (popupEl && popupEl.contains(e.target)) return;
 
-    const result = getWordAtPoint(e);
+    // 不阻止浏览器默认行为——让原生双击选中自然发生。
+    // 读取浏览器已经完成的 selection，而不是手动取词。
+    // 这样用户的双击选中行为不被破坏，选中的文字会有系统默认的高亮底色。
+    const result = getSelectedWord();
     if (!result) return;
 
-    // 阻止默认行为
-    e.preventDefault();
-    e.stopPropagation();
-
+    // 高亮单词（加底色）
     highlightRange(result.range);
-    selectAndCopyWord(result.word);
+    if (settings.autoCopy) {
+      selectAndCopyWord(result.word);
+    }
 
     debouncedProcessWord(result);
   });

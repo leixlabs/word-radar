@@ -417,3 +417,21 @@
 .word-radar-popup[data-theme="dark"] .word-radar-etymology-bar {
   background: #334155;
 }
+
+/* ====== Warning 提示 ====== */
+.word-radar-warning {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  font-size: 0.857em;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+.word-radar-popup[data-theme="dark"] .word-radar-warning {
+  background: #451a03;
+  border-color: #78350f;
+  color: #fcd34d;
+}

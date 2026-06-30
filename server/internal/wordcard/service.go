@@ -104,7 +104,9 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 				slog.String("word", word),
 				slog.String("error", err.Error()),
 			)
-			return s.buildFallbackCard(word, dictResult), nil
+			card := s.buildFallbackCard(word, dictResult)
+			card.Warning = "AI 增强服务异常，仅显示词典释义。详情见服务端日志。"
+			return card, nil
 		}
 
 		s.log.Info("llm responded",
@@ -120,7 +122,9 @@ func (s *Service) Generate(word string) (*WordCard, error) {
 				slog.String("raw", raw),
 				slog.String("error", err.Error()),
 			)
-			return s.buildFallbackCard(word, dictResult), nil
+			card := s.buildFallbackCard(word, dictResult)
+			card.Warning = "AI 增强数据解析异常，仅显示词典释义。"
+			return card, nil
 		}
 		llmPart = result
 

@@ -147,6 +147,7 @@ func (h *Handler) WordCard(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		card := h.wordcard.BuildFallbackCard(dictResult)
+		card.Warning = "AI 增强服务未配置（或 API Key 缺失），仅显示词典释义。"
 		respondJSON(w, http.StatusOK, card)
 		return
 	}
