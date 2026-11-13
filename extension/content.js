@@ -179,6 +179,14 @@
     return sentence;
   }
 
+  // 判断点击目标是否位于可编辑区域（输入框/文本域/contenteditable）
+  // 这类元素的可见文本可能是浏览器内部渲染节点，caretPositionFromPoint 仍可能"取到词"，
+  // 但后续 highlightRange 对其 surroundContents 会破坏输入框内部结构，导致无法继续输入。
+  function isEditableTarget(target) {
+    const el = target && target.closest && target.closest('input, textarea, [contenteditable], [contenteditable] *');
+    return !!el;
+  }
+
   function getSelectedWord() {
     const selection = window.getSelection();
     const text = selection.toString().trim();
@@ -739,6 +747,9 @@
     // 如果点击在弹窗内，不处理
     if (popupEl && popupEl.contains(e.target)) return;
 
+    // 输入框/文本域/contenteditable 内不取词，避免破坏其可编辑状态
+    if (isEditableTarget(e.target)) return;
+
     // 如果用户通过拖动选中了文本，保留用户选择，不做取词处理
     const userSelection = window.getSelection().toString().trim();
     if (userSelection.length > 0) return;
@@ -764,6 +775,7 @@
     // 非双击模式直接返回
     if (settings.trigger !== 'dblclick') return;
     if (popupEl && popupEl.contains(e.target)) return;
+    if (isEditableTarget(e.target)) return;
 
     // 不阻止浏览器默认行为——让原生双击选中自然发生。
     // 读取浏览器已经完成的 selection，而不是手动取词。
